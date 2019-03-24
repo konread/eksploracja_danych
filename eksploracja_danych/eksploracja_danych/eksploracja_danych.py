@@ -225,11 +225,12 @@ def session_remove_not_popular(data, pages):
 
         while i < len(data[key]):
             request_path = data[key][i]['request_path']
-            if request_path not in pages:
+            
+            if item_in_list(request_path, pages) == False:
                 del data[key][i]
 
             i = i + 1
-
+        
         if len(data[key]) > 1:
             temp[key] = data[key]
 
@@ -262,8 +263,10 @@ def session_attribute(data, pages):
         i = 0
 
         while i < len(data[key]):
-            if data[key][i] in pages:
-                    session_detail[key_session_detail] = 'T'
+            key_session_detail = data[key][i]['request_path']
+
+            if item_in_list(key_session_detail, pages):
+                session_detail[key_session_detail] = 'T'
 
             i = i + 1
 
@@ -271,32 +274,91 @@ def session_attribute(data, pages):
 
     return session
 
+def host_attribute(data, pages):
+    host = {}
+
+    for key in data:
+        host_detail = {}
+
+        for page in pages:
+            host_detail[str(page)] = 'F'
+
+        host_detail['host'] = key
+
+        visited = len(data[key])
+
+        host_detail['visited_pages'] = visited
+        
+        i = 0
+        
+        while i < len(data[key]):
+            key_host_detail = data[key][i]['request_path']
+
+            if item_in_list(key_host_detail, pages):
+                host_detail[str(key_host_detail)] = 'T'
+
+            i = i + 1
+
+        host[key] = host_detail
+
+    return host
+
+def item_in_list(item, list):
+    for x in list:
+        if len(str(x)) == len(str(item)) and x in item:
+            return True
+
+    return False
+
+def host_remove_not_popular(data, pages):
+    temp = {}
+
+    for key in data:
+        i = 0
+
+        while i < len(data[key]):
+            request_path = data[key][i]['request_path']
+
+            if item_in_list(request_path, pages) == False:
+                del data[key][i]
+
+            i = i + 1
+        
+        if len(data[key]) > 1:
+            temp[key] = data[key]
+
+    return temp
+
+def write_host_csv(filename, data, selected):
+    with open(filename, mode = 'w', newline='') as file:
+    
+        writer = csv.DictWriter(file, fieldnames = ['host', 'visited_pages'] + selected)
+
+        writer.writeheader()
+        
+        for key in data:    
+            writer.writerow(data[key])
+
 def main():
     #data_log = read_log_file('nasa.log')
     #parse_log_file('nasa_new.csv', data_log)
-    data_csv = read_log_file_csv('nasa_new.csv')
-    #data_host = identify_users(data_csv)
-    data_host = identify_users_full(data_csv)
     
+    data_csv = read_log_file_csv('nasa_new.csv')
+    
+    hos = identify_users_full(data_csv)
 
     pages = identify_page(data_csv)
-    selected = selected_page(pages)
+    popular = selected_page(pages)
 
-    #print(len(pages))
-    #print(len(selected))
-    #print(pages)
+    ses = session(hos)
 
-    #sessions = session(data_host, selected)
-
-    #write_session_csv('session.csv', sessions, selected)
-    #print_user(data_host)
-    #print_page(pages)
-    #print_page(selected)
-
-    ses = session(data_host)
-    rem = session_remove_not_popular(ses, selected)
-    att = session_attribute(rem, selected)
-    write_session_csv('session.csv', att, selected)
+    rem_ses = session_remove_not_popular(ses, popular)
+    att_ses = session_attribute(rem_ses, popular)
+    write_session_csv('session.csv', att_ses, popular)
     
+    rem_hos = host_remove_not_popular(hos, popular)
+    att_hos = host_attribute(rem_hos, popular)
+    write_host_csv('host.csv', att_hos, popular)
+
 if __name__ == "__main__":
     main()
