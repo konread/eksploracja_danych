@@ -16,11 +16,8 @@ def identify_users_full(data):
 
     while i < len(data_sorted):
         hostname = data_sorted['host'][i]
-        request_path = data_sorted['request_path'][i]
 
-        if hostname in host:
-            host[hostname]
-        else:
+        if hostname not in host:
             host[hostname] = []
 
         record = dict()
@@ -39,21 +36,9 @@ def identify_users_full(data):
         record['minute'] = data_sorted['minute'][i]
         record['second'] = data_sorted['second'][i]
 
-        current = dt.datetime(data_sorted['year'][i], data_sorted['month'][i], data_sorted['day'][i], data_sorted['hour'][i], 
-                              data_sorted['minute'][i], data_sorted['second'][i])
-        i = i + 1
-            
-        if i < len(data_sorted):
-            next = dt.datetime(data_sorted['year'][i], data_sorted['month'][i], data_sorted['day'][i], data_sorted['hour'][i], 
-                               data_sorted['minute'][i], data_sorted['second'][i])
-
-            second = (next - current).total_seconds()
-
-            record['time_per_page'] = second
-        else:
-            record['time_per_page'] = 0
-
         host[hostname].append(record)
+     
+        i = i + 1
 
     return host
 
@@ -172,62 +157,6 @@ def parse_log_file(name_file, data):
                     data_parse.append(record_parse_data)
 
                     writer.writerow(record_parse_data)
-                          
-def session(data_host, pages):
-    timeout = 10 * 60
-    id = 0
-
-    session = {}
-
-    for key in data_host:
-        second = 0
-        i = 0
-
-        id = id + 1
-
-        data = data_host[key]
-        lenght = len(data)
-
-        session_detail = {}
-
-        for page in pages:
-            session_detail[page] = 'F'
-
-        session_detail['id'] = id
-        session_detail['session_time'] = 0
-        session_detail['session_action'] = 0
-        session_detail['time_per_page'] = 0
-
-        while i < lenght:
-            second += data[i]['time_per_page']
-
-            if second > timeout:
-                if id in session:
-                    id = id + 1 
-
-                session_detail['session_time'] = second
-                session_detail['session_action'] = 1
-
-                second = 0;   
-            else:        
-                session_detail['session_time'] = second
-                session_detail['session_action'] += 1 
-            
-            if session_detail['session_action'] > 2:
-                session_detail['id'] = id
-            
-                session_detail['time_per_page'] = round(session_detail['session_time'] / (session_detail['session_action'] - 1))
-
-                key_session_detail = data[i]['request_path']
-
-                if key_session_detail in session_detail:
-                    session_detail[key_session_detail] = 'T'
-            
-                session[id] = session_detail
-
-            i = i + 1
-
-    return session
 
 def write_session_csv(filename, data, selected):
     with open(filename, mode = 'w', newline='') as file:
@@ -255,6 +184,93 @@ def print_page(data):
     for item in data:
         print(item)
 
+def session(data_host):
+    timeout = 10 * 60
+    id = 0
+
+    session = {}
+
+    for key in data_host:
+        i = 0
+        id = id + 1
+        data = data_host[key]
+
+        first = dt.datetime(data[0]['year'], data[0]['month'], data[0]['day'], data[0]['hour'], data[0]['minute'], data[0]['second'])
+
+        while i < len(data):
+            last = dt.datetime(data[i]['year'], data[i]['month'], data[i]['day'], data[i]['hour'], data[i]['minute'], data[i]['second'])
+
+            second = round((last - first).total_seconds())
+
+            if second > timeout:
+                first = last
+
+                if id in session:
+                    id = id + 1 
+            
+            if id not in session:
+                session[id] = []
+
+            session[id].append(data[i])
+
+            i = i + 1
+
+    return session
+
+def session_remove_not_popular(data, pages):
+    temp = {}
+
+    for key in data:
+        i = 0
+
+        while i < len(data[key]):
+            request_path = data[key][i]['request_path']
+            if request_path not in pages:
+                del data[key][i]
+
+            i = i + 1
+
+        if len(data[key]) > 1:
+            temp[key] = data[key]
+
+    return temp
+
+def session_attribute(data, pages):
+    session = {}
+
+    for key in data:
+        session_detail = {}
+
+        for page in pages:
+            session_detail[page] = 'F'
+
+        session_detail['id'] = key
+
+        value_first = data[key][0]
+        value_last = data[key][len(data[key]) - 1]
+
+        first = dt.datetime(value_first['year'], value_first['month'], value_first['day'], value_first['hour'], value_first['minute'], value_first['second'])
+        last = dt.datetime(value_last['year'], value_last['month'], value_last['day'], value_last['hour'], value_last['minute'], value_last['second'])
+           
+        time = round((last - first).total_seconds())
+        action = len(data[key])
+
+        session_detail['session_time'] = time
+        session_detail['session_action'] = action
+        session_detail['time_per_page'] = round(time / action)
+
+        i = 0
+
+        while i < len(data[key]):
+            if data[key][i] in pages:
+                    session_detail[key_session_detail] = 'T'
+
+            i = i + 1
+
+        session[key] = session_detail
+
+    return session
+
 def main():
     #data_log = read_log_file('nasa.log')
     #parse_log_file('nasa_new.csv', data_log)
@@ -270,12 +286,17 @@ def main():
     #print(len(selected))
     #print(pages)
 
-    sessions = session(data_host, selected)
+    #sessions = session(data_host, selected)
 
-    write_session_csv('session.csv', sessions, selected)
+    #write_session_csv('session.csv', sessions, selected)
     #print_user(data_host)
     #print_page(pages)
     #print_page(selected)
 
+    ses = session(data_host)
+    rem = session_remove_not_popular(ses, selected)
+    att = session_attribute(rem, selected)
+    write_session_csv('session.csv', att, selected)
+    
 if __name__ == "__main__":
     main()
