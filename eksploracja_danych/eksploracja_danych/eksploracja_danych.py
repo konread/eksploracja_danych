@@ -95,7 +95,9 @@ def selected_page(data):
     return selected
 
 def read_log_file_csv(name_file):
-     data = pd.read_csv(name_file, sep = ',', names=["host", "http_version", "method", "request_path", "response_size", "status", "date", "time", "year", "month", "day", "hour", "minute", "second"])
+     data = pd.read_csv(name_file, sep = ',', names=["host", "http_version", "method", "request_path", 
+                                                     "response_size", "status", "date", "time", "year", 
+                                                     "month", "day", "hour", "minute", "second"])
 
      return data
 
@@ -115,10 +117,6 @@ def parse_log_file(name_file, data):
     with open(name_file, 'w', newline='') as file:
         writer = csv.writer(file)
        
-        #...
-
-        #writer.writerow(["host", "http_version", "method", "request_path", "response_size", "status", "date", "time", "year", "month", "day", "hour", "minute", "second"])
-
         for record in data:
             record_parse = line_parser(record)
 
@@ -250,8 +248,11 @@ def session_attribute(data, pages):
         value_first = data[key][0]
         value_last = data[key][len(data[key]) - 1]
 
-        first = dt.datetime(value_first['year'], value_first['month'], value_first['day'], value_first['hour'], value_first['minute'], value_first['second'])
-        last = dt.datetime(value_last['year'], value_last['month'], value_last['day'], value_last['hour'], value_last['minute'], value_last['second'])
+        first = dt.datetime(value_first['year'], value_first['month'], value_first['day'], 
+                            value_first['hour'], value_first['minute'], value_first['second'])
+
+        last = dt.datetime(value_last['year'], value_last['month'], value_last['day'], 
+                           value_last['hour'], value_last['minute'], value_last['second'])
            
         time = round((last - first).total_seconds())
         action = len(data[key])
